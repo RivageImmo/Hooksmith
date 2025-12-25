@@ -2,7 +2,8 @@
 
 module Hooksmith
   module Config
-    # Provider is used internally by the DSL to collect processor registrations.
+    # Provider is used internally by the DSL to collect processor registrations
+    # and optional verifier configuration.
     #
     # Uses string keys internally to prevent Symbol DoS attacks when processing
     # untrusted webhook input.
@@ -11,10 +12,20 @@ module Hooksmith
       attr_reader :provider
       # @return [Array<Hash>] list of entries registered.
       attr_reader :entries
+      # @return [Hooksmith::Verifiers::Base, nil] the verifier for this provider.
+      # @example
+      #   config.provider(:stripe) do |stripe|
+      #     stripe.verifier = Hooksmith::Verifiers::Hmac.new(
+      #       secret: ENV['STRIPE_WEBHOOK_SECRET'],
+      #       header: 'Stripe-Signature'
+      #     )
+      #   end
+      attr_accessor :verifier
 
       def initialize(provider)
         @provider = provider.to_s
         @entries = []
+        @verifier = nil
       end
 
       # Registers a processor for a specific event.
