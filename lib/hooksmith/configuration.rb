@@ -54,7 +54,8 @@ module Hooksmith
     #       store.model_class_name = 'MyApp::WebhookEvent'
     #       store.record_timing = :before # or :after, or :both
     #       store.mapper = ->(provider:, event:, payload:) {
-    #         { provider:, event: event.to_s, payload:, received_at: (Time.respond_to?(:current) ? Time.current : Time.now) }
+    #         now = Time.respond_to?(:current) ? Time.current : Time.now
+    #         { provider:, event: event.to_s, payload:, received_at: now }
     #       }
     #     end
     #   end
