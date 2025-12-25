@@ -50,6 +50,30 @@ module Hooksmith
       def enabled?
         true
       end
+
+      protected
+
+      # Performs a constant-time string comparison to prevent timing attacks.
+      #
+      # @param expected [String] expected string
+      # @param actual [String] actual string
+      # @return [Boolean] true if strings are equal
+      def secure_compare(expected, actual)
+        return false if expected.nil? || actual.nil?
+        return false if expected.bytesize != actual.bytesize
+
+        # Use OpenSSL's secure comparison if available (Ruby 2.5+)
+        if OpenSSL.respond_to?(:secure_compare)
+          OpenSSL.secure_compare(expected, actual)
+        else
+          # Fallback to manual constant-time comparison
+          left = expected.unpack('C*')
+          right = actual.unpack('C*')
+          result = 0
+          left.zip(right) { |x, y| result |= x ^ y }
+          result.zero?
+        end
+      end
     end
   end
 end
