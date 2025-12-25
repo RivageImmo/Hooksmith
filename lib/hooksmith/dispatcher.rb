@@ -41,57 +41,72 @@ module Hooksmith
     # @raise [Hooksmith::ProcessorError] if the processor raises an error.
     # @return [Object, nil] the result of the processor, or nil if no processor matched.
     def run!
-      Hooksmith::EventRecorder.record!(provider: @provider, event: @event, payload: @payload, timing: :before)
-
-      entries = Hooksmith.configuration.processors_for(@provider, @event)
-      matching = find_matching_processors(entries)
-
-      if matching.empty?
-        handle_no_processor
-        return
+      Hooksmith::Instrumentation.instrument('dispatch', provider: @provider, event: @event) do
+        dispatch_webhook
       end
+    end
 
-      if matching.size > 1
-        processor_names = matching.map { |p| p.class.name }
-        raise MultipleProcessorsError.new(@provider, @event, @payload, processor_names:)
-      end
+    private
+
+    def dispatch_webhook
+      record_event(:before)
+      matching = find_matching_processors
+
+      return handle_no_processor if matching.empty?
+
+      handle_multiple_processors(matching) if matching.size > 1
 
       execute_processor(matching.first)
     rescue Hooksmith::Error
       raise
     rescue StandardError => e
+      publish_error(e)
       Hooksmith.logger.error("Error processing #{@provider} event #{@event}: #{e.message}")
       raise e
     end
 
-    private
-
-    # Finds all processors that can handle the current payload.
-    #
-    # @param entries [Array<Hash>] the registered processor entries
-    # @return [Array<Hooksmith::Processor::Base>] matching processors
-    def find_matching_processors(entries)
+    def find_matching_processors
+      entries = Hooksmith.configuration.processors_for(@provider, @event)
       entries.filter_map do |entry|
         processor = Object.const_get(entry[:processor]).new(@payload)
         processor if processor.can_handle?(@payload)
       end
     end
 
-    # Handles the case when no processor matches.
-    #
-    # @raise [Hooksmith::NoProcessorError] if strict mode is enabled
     def handle_no_processor
+      Hooksmith::Instrumentation.publish('no_processor', provider: @provider, event: @event)
       Hooksmith.logger.warn("No processor registered for #{@provider} event #{@event} could handle the payload")
+      nil
     end
 
-    # Executes a single processor and records the event.
-    #
-    # @param processor [Hooksmith::Processor::Base] the processor to execute
-    # @return [Object] the result of the processor
+    def handle_multiple_processors(matching)
+      processor_names = matching.map { |p| p.class.name }
+      Hooksmith::Instrumentation.publish(
+        'multiple_processors',
+        provider: @provider, event: @event, processor_count: matching.size
+      )
+      raise MultipleProcessorsError.new(@provider, @event, @payload, processor_names:)
+    end
+
     def execute_processor(processor)
-      result = processor.process!
-      Hooksmith::EventRecorder.record!(provider: @provider, event: @event, payload: @payload, timing: :after)
+      result = Hooksmith::Instrumentation.instrument(
+        'process',
+        provider: @provider, event: @event, processor: processor.class.name
+      ) { processor.process! }
+
+      record_event(:after)
       result
+    end
+
+    def record_event(timing)
+      Hooksmith::EventRecorder.record!(provider: @provider, event: @event, payload: @payload, timing:)
+    end
+
+    def publish_error(error)
+      Hooksmith::Instrumentation.publish(
+        'error',
+        provider: @provider, event: @event, error: error.message, error_class: error.class.name
+      )
     end
   end
 end
