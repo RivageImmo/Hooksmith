@@ -3,7 +3,7 @@
 # Provides a DSL for registering webhook processors by provider and event.
 #
 module Hooksmith
-  # Configuration holds the registry of all processors and verifiers.
+  # Configuration holds the registry of all processors, verifiers, and idempotency settings.
   #
   # The registry uses string keys internally to prevent Symbol DoS attacks
   # when processing untrusted webhook input. Provider and event names from
@@ -13,6 +13,8 @@ module Hooksmith
     attr_reader :registry
     # @return [Hash] a registry mapping provider strings to verifier instances.
     attr_reader :verifiers
+    # @return [Hash] a registry mapping provider strings to idempotency key extractors.
+    attr_reader :idempotency_keys
     # @return [Hooksmith::Config::EventStore] configuration for event persistence
     attr_reader :event_store_config
 
@@ -21,6 +23,7 @@ module Hooksmith
       # Uses strings to prevent Symbol DoS from untrusted webhook input
       @registry = Hash.new { |hash, key| hash[key] = [] }
       @verifiers = {}
+      @idempotency_keys = {}
       @event_store_config = Hooksmith::Config::EventStore.new
     end
 
@@ -34,6 +37,7 @@ module Hooksmith
       provider_key = provider_name.to_s
       registry[provider_key].concat(provider_config.entries)
       @verifiers[provider_key] = provider_config.verifier if provider_config.verifier
+      @idempotency_keys[provider_key] = provider_config.idempotency_key if provider_config.idempotency_key
     end
 
     # Direct registration of a processor.
@@ -68,6 +72,14 @@ module Hooksmith
     # @param verifier [Hooksmith::Verifiers::Base] the verifier instance
     def register_verifier(provider, verifier)
       @verifiers[provider.to_s] = verifier
+    end
+
+    # Returns the idempotency key extractor for a given provider.
+    #
+    # @param provider [Symbol, String] the provider name
+    # @return [Proc, nil] the idempotency key extractor or nil if not configured
+    def idempotency_key_for(provider)
+      @idempotency_keys[provider.to_s]
     end
 
     # Configure event store persistence.

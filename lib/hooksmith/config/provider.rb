@@ -2,8 +2,8 @@
 
 module Hooksmith
   module Config
-    # Provider is used internally by the DSL to collect processor registrations
-    # and optional verifier configuration.
+    # Provider is used internally by the DSL to collect processor registrations,
+    # optional verifier configuration, and idempotency settings.
     #
     # Uses string keys internally to prevent Symbol DoS attacks when processing
     # untrusted webhook input.
@@ -21,11 +21,18 @@ module Hooksmith
       #     )
       #   end
       attr_accessor :verifier
+      # @return [Proc, nil] the idempotency key extractor for this provider.
+      # @example
+      #   config.provider(:stripe) do |stripe|
+      #     stripe.idempotency_key = ->(payload) { payload['id'] }
+      #   end
+      attr_accessor :idempotency_key
 
       def initialize(provider)
         @provider = provider.to_s
         @entries = []
         @verifier = nil
+        @idempotency_key = nil
       end
 
       # Registers a processor for a specific event.
