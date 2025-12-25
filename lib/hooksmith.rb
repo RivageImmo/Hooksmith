@@ -11,6 +11,7 @@ require 'hooksmith/logger'
 require 'hooksmith/event_recorder'
 require 'hooksmith/idempotency'
 require 'hooksmith/processor/base'
+require 'hooksmith/jobs/dispatcher_job' if defined?(ActiveJob)
 require 'hooksmith/verifiers/base'
 require 'hooksmith/verifiers/hmac'
 require 'hooksmith/verifiers/bearer_token'
