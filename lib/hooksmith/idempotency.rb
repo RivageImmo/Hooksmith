@@ -95,7 +95,7 @@ module Hooksmith
         if model_class.respond_to?(:exists_with_idempotency_key?)
           model_class.exists_with_idempotency_key?(provider:, idempotency_key: key)
         elsif model_class.respond_to?(:find_by_idempotency_key)
-          model_class.find_by_idempotency_key(provider:, idempotency_key: key).present?
+          !model_class.find_by_idempotency_key(provider:, idempotency_key: key).nil?
         elsif model_class.respond_to?(:exists?)
           model_class.exists?(provider:, idempotency_key: key)
         else

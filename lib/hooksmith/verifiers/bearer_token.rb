@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'openssl'
+
 module Hooksmith
   module Verifiers
     # Bearer token webhook verifier.
@@ -71,26 +73,6 @@ module Hooksmith
         token = raw_token.to_s.strip
         token = token.sub(/\ABearer\s+/i, '') if @strip_bearer_prefix
         token.empty? ? nil : token
-      end
-
-      # Performs a constant-time string comparison to prevent timing attacks.
-      #
-      # @param expected [String] expected string
-      # @param actual [String] actual string
-      # @return [Boolean] true if strings are equal
-      def secure_compare(expected, actual)
-        return false if expected.nil? || actual.nil?
-        return false if expected.bytesize != actual.bytesize
-
-        if OpenSSL.respond_to?(:secure_compare)
-          OpenSSL.secure_compare(expected, actual)
-        else
-          left = expected.unpack('C*')
-          right = actual.unpack('C*')
-          result = 0
-          left.zip(right) { |x, y| result |= x ^ y }
-          result.zero?
-        end
       end
     end
   end

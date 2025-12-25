@@ -51,7 +51,12 @@ module Hooksmith
       # @option timestamp_options [Integer] :tolerance max age of request in seconds (default: 300)
       # @option timestamp_options [Symbol] :format timestamp format (:unix or :iso8601)
       def initialize(secret:, header:, **options)
-        super(**options.except(:algorithm, :encoding, :signature_prefix, :timestamp_options))
+        # Extract known options and pass remaining to parent (avoids ActiveSupport dependency)
+        known_keys = %i[algorithm encoding signature_prefix timestamp_options]
+        # rubocop:disable Style/HashExcept -- intentionally avoiding ActiveSupport's Hash#except
+        parent_options = options.reject { |k, _| known_keys.include?(k) }
+        # rubocop:enable Style/HashExcept
+        super(**parent_options)
         @secret = secret
         @header = header
         @algorithm = validate_algorithm(options.fetch(:algorithm, 'sha256'))
@@ -173,28 +178,6 @@ module Hooksmith
         end
       rescue ArgumentError, TypeError
         nil
-      end
-
-      # Performs a constant-time string comparison to prevent timing attacks.
-      #
-      # @param expected [String] expected string
-      # @param actual [String] actual string
-      # @return [Boolean] true if strings are equal
-      def secure_compare(expected, actual)
-        return false if expected.nil? || actual.nil?
-        return false if expected.bytesize != actual.bytesize
-
-        # Use OpenSSL's secure comparison if available (Ruby 2.5+)
-        if OpenSSL.respond_to?(:secure_compare)
-          OpenSSL.secure_compare(expected, actual)
-        else
-          # Fallback to manual constant-time comparison
-          left = expected.unpack('C*')
-          right = actual.unpack('C*')
-          result = 0
-          left.zip(right) { |x, y| result |= x ^ y }
-          result.zero?
-        end
       end
     end
   end

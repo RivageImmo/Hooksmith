@@ -73,13 +73,13 @@ module Hooksmith
 
     # Subscribes to a Hooksmith event.
     #
-    # @param event_name [String, Regexp] the event name or pattern
+    # @param event_name [String, Regexp, nil] the event name, pattern, or nil for all events
     # @yield [name, start, finish, id, payload] the event callback
     # @return [Object] the subscription object
     def subscribe(event_name = nil, &block)
       return unless notifications_available?
 
-      pattern = event_name ? "#{event_name}.#{NAMESPACE}" : /\.#{NAMESPACE}$/
+      pattern = build_subscription_pattern(event_name)
       ActiveSupport::Notifications.subscribe(pattern, &block)
     end
 
@@ -90,6 +90,23 @@ module Hooksmith
       return unless notifications_available?
 
       ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
+    private
+
+    # Builds the subscription pattern based on the event name type.
+    #
+    # @param event_name [String, Regexp, nil] the event name or pattern
+    # @return [String, Regexp] the subscription pattern
+    def build_subscription_pattern(event_name)
+      case event_name
+      when nil
+        /\.#{NAMESPACE}$/
+      when Regexp
+        event_name
+      else
+        "#{event_name}.#{NAMESPACE}"
+      end
     end
   end
 end
