@@ -8,7 +8,11 @@ require 'hooksmith/dispatcher'
 require 'hooksmith/logger'
 require 'hooksmith/event_recorder'
 require 'hooksmith/processor/base'
-require 'hooksmith/railtie' if defined?(Rails)
+
+if defined?(Rails)
+  require 'hooksmith/railtie'
+  require 'hooksmith/rails/webhooks_controller'
+end
 
 # Main entry point for the Hooksmith gem.
 #
