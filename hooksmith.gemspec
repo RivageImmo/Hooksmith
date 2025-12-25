@@ -39,7 +39,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   # Runtime dependencies
-  spec.add_dependency 'base64', '>= 0.1.0' # Required for HMAC signature encoding
+  spec.add_dependency 'base64', '~> 0.1', '>= 0.1.0' # Required for HMAC signature encoding
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
