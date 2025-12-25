@@ -31,9 +31,10 @@ class ConfigurationTest < Minitest::Test
         provider_config.register(:test_event, 'DummyProcessor')
       end
     end
-    entries = Hooksmith.configuration.registry[:test_provider]
+    # Registry uses string keys internally to prevent Symbol DoS
+    entries = Hooksmith.configuration.registry['test_provider']
     assert_equal 1, entries.size
-    assert_equal :test_event, entries.first[:event]
+    assert_equal 'test_event', entries.first[:event]
     assert_equal DummyProcessor, Object.const_get(entries.first[:processor])
   end
 
@@ -48,7 +49,8 @@ class ConfigurationTest < Minitest::Test
     provider_config = Hooksmith::Config::Provider.new(:example)
     provider_config.register(:sample_event, 'DummyProcessor')
     assert_equal 1, provider_config.entries.size
-    assert_equal :sample_event, provider_config.entries.first[:event]
+    # Provider uses string keys internally to prevent Symbol DoS
+    assert_equal 'sample_event', provider_config.entries.first[:event]
     assert_equal DummyProcessor, Object.const_get(provider_config.entries.first[:processor])
   end
 end
