@@ -31,9 +31,10 @@ class ConfigurationTest < Minitest::Test
         provider_config.register(:test_event, 'DummyProcessor')
       end
     end
-    entries = Hooksmith.configuration.registry[:test_provider]
+    # Registry uses string keys internally to prevent Symbol DoS
+    entries = Hooksmith.configuration.registry['test_provider']
     assert_equal 1, entries.size
-    assert_equal :test_event, entries.first[:event]
+    assert_equal 'test_event', entries.first[:event]
     assert_equal DummyProcessor, Object.const_get(entries.first[:processor])
   end
 
@@ -48,7 +49,26 @@ class ConfigurationTest < Minitest::Test
     provider_config = Hooksmith::Config::Provider.new(:example)
     provider_config.register(:sample_event, 'DummyProcessor')
     assert_equal 1, provider_config.entries.size
-    assert_equal :sample_event, provider_config.entries.first[:event]
+    # Provider uses string keys internally to prevent Symbol DoS
+    assert_equal 'sample_event', provider_config.entries.first[:event]
     assert_equal DummyProcessor, Object.const_get(provider_config.entries.first[:processor])
+  end
+
+  def test_symbol_dos_prevention
+    # Verify that untrusted input doesn't create new symbols
+    initial_symbol_count = Symbol.all_symbols.count
+
+    # Simulate untrusted webhook input with random event names
+    100.times do |i|
+      Hooksmith.configuration.processors_for("untrusted_provider_#{i}", "untrusted_event_#{i}")
+    end
+
+    # Symbol count should not have increased significantly
+    # (some symbols may be created by the test framework itself)
+    final_symbol_count = Symbol.all_symbols.count
+    symbol_increase = final_symbol_count - initial_symbol_count
+
+    # Should not create 200 new symbols (one for each provider and event)
+    assert symbol_increase < 50, "Symbol DoS: created #{symbol_increase} new symbols from untrusted input"
   end
 end
