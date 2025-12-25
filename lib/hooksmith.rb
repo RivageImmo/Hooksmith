@@ -16,7 +16,11 @@ require 'hooksmith/jobs/dispatcher_job' if defined?(ActiveJob)
 require 'hooksmith/verifiers/base'
 require 'hooksmith/verifiers/hmac'
 require 'hooksmith/verifiers/bearer_token'
-require 'hooksmith/railtie' if defined?(Rails)
+
+if defined?(Rails)
+  require 'hooksmith/railtie'
+  require 'hooksmith/rails/webhooks_controller'
+end
 
 # Main entry point for the Hooksmith gem.
 #
