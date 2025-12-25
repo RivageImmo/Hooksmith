@@ -3,18 +3,28 @@
 module Hooksmith
   # Dispatcher routes incoming webhook payloads to the appropriate processor.
   #
+  # Uses string keys internally to prevent Symbol DoS attacks when processing
+  # untrusted webhook input from external sources.
+  #
   # @example Dispatch a webhook event:
   #   Hooksmith::Dispatcher.new(provider: :stripe, event: :charge_succeeded, payload: payload).run!
   #
   class Dispatcher
+    # @return [String] the provider name
+    attr_reader :provider
+    # @return [String] the event name
+    attr_reader :event
+    # @return [Hash] the webhook payload
+    attr_reader :payload
+
     # Initializes a new Dispatcher.
     #
     # @param provider [Symbol, String] the provider (e.g., :stripe)
     # @param event [Symbol, String] the event (e.g., :charge_succeeded)
     # @param payload [Hash] the webhook payload data.
     def initialize(provider:, event:, payload:)
-      @provider = provider.to_sym
-      @event    = event.to_sym
+      @provider = provider.to_s
+      @event    = event.to_s
       @payload  = payload
     end
 
@@ -62,14 +72,27 @@ module Hooksmith
   end
 
   # Raised when multiple processors can handle the same event.
+  #
+  # This error intentionally does not include the full payload in the message
+  # to prevent PII exposure in logs and error tracking systems.
   class MultipleProcessorsError < StandardError
-    # Initializes the error with details about the provider, event, and payload.
+    # @return [String] the provider name
+    attr_reader :provider
+    # @return [String] the event name
+    attr_reader :event
+    # @return [Integer] the number of bytes in the payload (for debugging)
+    attr_reader :payload_size
+
+    # Initializes the error with details about the provider and event.
     #
-    # @param provider [Symbol] the provider name.
-    # @param event [Symbol] the event name.
-    # @param payload [Hash] the webhook payload.
+    # @param provider [String] the provider name.
+    # @param event [String] the event name.
+    # @param payload [Hash] the webhook payload (not included in message to prevent PII exposure).
     def initialize(provider, event, payload)
-      super("Multiple processors found for #{provider} event #{event}. Payload: #{payload}")
+      @provider = provider.to_s
+      @event = event.to_s
+      @payload_size = payload.to_s.bytesize
+      super("Multiple processors found for #{@provider} event #{@event} (payload_size=#{@payload_size} bytes)")
     end
   end
 end
