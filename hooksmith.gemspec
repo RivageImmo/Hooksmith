@@ -9,7 +9,12 @@ Gem::Specification.new do |spec|
   spec.email = ['gregory@rivage.immo']
 
   spec.summary = 'Hooksmith is a gem that allows you to handle webhooks in your Rails application.'
-  spec.description = 'Hooksmith is a gem that allows you to handle webhooks in your Rails application. It provides a simple and flexible way to receive, validate, and process webhooks from various services. With Hooksmith, you can easily configure webhook endpoints, handle authentication, retry failed webhooks, and manage webhook payloads in a consistent manner.'
+  spec.description = <<~DESC.gsub("\n", ' ').strip
+    Hooksmith is a gem that allows you to handle webhooks in your Rails application.
+    It provides a simple and flexible way to receive, validate, and process webhooks from various services.
+    With Hooksmith, you can easily configure webhook endpoints, handle authentication, retry failed webhooks,
+    and manage webhook payloads in a consistent manner.
+  DESC
   spec.homepage = 'https://github.com/gregoryrivage/hooksmith'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.1.0'

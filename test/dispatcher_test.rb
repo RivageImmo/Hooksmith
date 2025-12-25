@@ -32,6 +32,7 @@ class DispatcherTest < Minitest::Test
     end
   end
 
+  # Second multi-processor for testing multiple processor scenario.
   class ::MultiProcessor2 < Hooksmith::Processor::Base
     def can_handle?(_payload)
       true
