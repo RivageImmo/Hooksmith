@@ -3,7 +3,7 @@
 # Provides a DSL for registering webhook processors by provider and event.
 #
 module Hooksmith
-  # Configuration holds the registry of all processors and idempotency settings.
+  # Configuration holds the registry of all processors, verifiers, and idempotency settings.
   #
   # The registry uses string keys internally to prevent Symbol DoS attacks
   # when processing untrusted webhook input. Provider and event names from
@@ -11,6 +11,8 @@ module Hooksmith
   class Configuration
     # @return [Hash] a registry mapping provider strings to arrays of processor entries.
     attr_reader :registry
+    # @return [Hash] a registry mapping provider strings to verifier instances.
+    attr_reader :verifiers
     # @return [Hash] a registry mapping provider strings to idempotency key extractors.
     attr_reader :idempotency_keys
     # @return [Hooksmith::Config::EventStore] configuration for event persistence
@@ -20,6 +22,7 @@ module Hooksmith
       # Registry structure: { "provider" => [{ event: "event", processor: "ProcessorClass" }, ...] }
       # Uses strings to prevent Symbol DoS from untrusted webhook input
       @registry = Hash.new { |hash, key| hash[key] = [] }
+      @verifiers = {}
       @idempotency_keys = {}
       @event_store_config = Hooksmith::Config::EventStore.new
     end
@@ -33,6 +36,7 @@ module Hooksmith
       yield(provider_config)
       provider_key = provider_name.to_s
       registry[provider_key].concat(provider_config.entries)
+      @verifiers[provider_key] = provider_config.verifier if provider_config.verifier
       @idempotency_keys[provider_key] = provider_config.idempotency_key if provider_config.idempotency_key
     end
 
@@ -52,6 +56,22 @@ module Hooksmith
     # @return [Array<Hash>] the array of matching entries.
     def processors_for(provider, event)
       registry[provider.to_s].select { |entry| entry[:event] == event.to_s }
+    end
+
+    # Returns the verifier for a given provider.
+    #
+    # @param provider [Symbol, String] the provider name
+    # @return [Hooksmith::Verifiers::Base, nil] the verifier or nil if not configured
+    def verifier_for(provider)
+      @verifiers[provider.to_s]
+    end
+
+    # Registers a verifier for a provider directly.
+    #
+    # @param provider [Symbol, String] the provider name
+    # @param verifier [Hooksmith::Verifiers::Base] the verifier instance
+    def register_verifier(provider, verifier)
+      @verifiers[provider.to_s] = verifier
     end
 
     # Returns the idempotency key extractor for a given provider.
