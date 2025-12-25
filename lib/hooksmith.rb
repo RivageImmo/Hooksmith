@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'hooksmith/version'
+require 'hooksmith/errors'
 require 'hooksmith/configuration'
 require 'hooksmith/config/provider'
 require 'hooksmith/config/event_store'
