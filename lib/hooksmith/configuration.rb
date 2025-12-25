@@ -4,14 +4,19 @@
 #
 module Hooksmith
   # Configuration holds the registry of all processors.
+  #
+  # The registry uses string keys internally to prevent Symbol DoS attacks
+  # when processing untrusted webhook input. Provider and event names from
+  # external sources are converted to strings, not symbols.
   class Configuration
-    # @return [Hash] a registry mapping provider symbols to arrays of processor entries.
+    # @return [Hash] a registry mapping provider strings to arrays of processor entries.
     attr_reader :registry
     # @return [Hooksmith::Config::EventStore] configuration for event persistence
     attr_reader :event_store_config
 
     def initialize
-      # Registry structure: { provider_symbol => [{ event: event_symbol, processor: ProcessorClass }, ...] }
+      # Registry structure: { "provider" => [{ event: "event", processor: "ProcessorClass" }, ...] }
+      # Uses strings to prevent Symbol DoS from untrusted webhook input
       @registry = Hash.new { |hash, key| hash[key] = [] }
       @event_store_config = Hooksmith::Config::EventStore.new
     end
@@ -23,7 +28,7 @@ module Hooksmith
     def provider(provider_name)
       provider_config = Hooksmith::Config::Provider.new(provider_name)
       yield(provider_config)
-      registry[provider_name.to_sym].concat(provider_config.entries)
+      registry[provider_name.to_s].concat(provider_config.entries)
     end
 
     # Direct registration of a processor.
@@ -32,7 +37,7 @@ module Hooksmith
     # @param event [Symbol, String] the event name
     # @param processor_class_name [String] the processor class name
     def register_processor(provider, event, processor_class_name)
-      registry[provider.to_sym] << { event: event.to_sym, processor: processor_class_name }
+      registry[provider.to_s] << { event: event.to_s, processor: processor_class_name }
     end
 
     # Returns all processor entries for a given provider and event.
@@ -41,7 +46,7 @@ module Hooksmith
     # @param event [Symbol, String] the event name
     # @return [Array<Hash>] the array of matching entries.
     def processors_for(provider, event)
-      registry[provider.to_sym].select { |entry| entry[:event] == event.to_sym }
+      registry[provider.to_s].select { |entry| entry[:event] == event.to_s }
     end
 
     # Configure event store persistence.

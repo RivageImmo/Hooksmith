@@ -100,6 +100,66 @@ class DispatcherTest < Minitest::Test
     assert_match(/Multiple processors found/, error.message)
   end
 
+  def test_multiple_processors_error_does_not_expose_payload_pii
+    # Test that MultipleProcessorsError does not include the full payload in the message
+    error = raise_multiple_processors_error_with_sensitive_payload
+
+    # Error message should NOT contain sensitive data
+    refute_match(/user@example\.com/, error.message)
+    refute_match(/secret123/, error.message)
+    refute_match(/4111111111111111/, error.message)
+    refute_match(/123-45-6789/, error.message)
+
+    # Error should include provider, event, and payload size for debugging
+    assert_match(/test_dispatcher/, error.message)
+    assert_match(/pii_event/, error.message)
+    assert_match(/payload_size=\d+ bytes/, error.message)
+  end
+
+  def test_multiple_processors_error_exposes_metadata_via_accessors
+    error = raise_multiple_processors_error_with_sensitive_payload
+
+    assert_equal 'test_dispatcher', error.provider
+    assert_equal 'pii_event', error.event
+    assert error.payload_size.positive?
+  end
+
+  private
+
+  def raise_multiple_processors_error_with_sensitive_payload
+    sensitive_payload = {
+      email: 'user@example.com',
+      password: 'secret123',
+      credit_card: '4111111111111111',
+      ssn: '123-45-6789'
+    }
+
+    Hooksmith.configuration.register_processor(@provider, :pii_event, 'MultiProcessor1')
+    Hooksmith.configuration.register_processor(@provider, :pii_event, 'MultiProcessor2')
+
+    dispatcher = Hooksmith::Dispatcher.new(provider: @provider, event: :pii_event, payload: sensitive_payload)
+    assert_raises(Hooksmith::MultipleProcessorsError) { dispatcher.run! }
+  end
+
+  public
+
+  def test_dispatcher_uses_strings_internally
+    # Test that dispatcher converts provider and event to strings to prevent Symbol DoS
+    Hooksmith.configuration.register_processor(@provider, :string_test, 'SingleProcessor')
+
+    dispatcher = Hooksmith::Dispatcher.new(
+      provider: @provider,
+      event: :string_test,
+      payload: @payload
+    )
+
+    # Dispatcher should store provider and event as strings
+    assert_instance_of String, dispatcher.provider
+    assert_instance_of String, dispatcher.event
+    assert_equal 'test_dispatcher', dispatcher.provider
+    assert_equal 'string_test', dispatcher.event
+  end
+
   def test_processor_error_propagates
     Hooksmith.configuration.register_processor(@provider, :error_event, 'ErrorProcessor')
     dispatcher = Hooksmith::Dispatcher.new(
